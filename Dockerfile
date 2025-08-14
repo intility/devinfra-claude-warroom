@@ -19,8 +19,9 @@ RUN curl -L https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/ope
     -o /usr/local/bin/hypershift && \
     chmod +x /usr/local/bin/hypershift /usr/local/bin/oc /usr/local/bin/kubectl
 
-# Install Claude Code CLI globally
-RUN npm install -g @anthropic-ai/claude-code
+# Install Claude CLI globally
+# Note: Using the correct package name for Claude CLI
+RUN npm install -g @anthropic-ai/claude-cli
 
 # Verify installations
 RUN claude --version && \
