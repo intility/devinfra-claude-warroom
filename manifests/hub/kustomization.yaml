@@ -3,10 +3,8 @@ kind: Kustomization
 
 namespace: claude-warroom
 
-bases:
-  - ../base
-
 resources:
+  - ../base
   - job-template.yaml
 
 configMapGenerator:
