@@ -14,12 +14,15 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Install OpenShift and HyperShift CLIs
+# Install OpenShift CLI
 RUN curl -L https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux.tar.gz | \
     tar -xz -C /usr/local/bin oc kubectl && \
-    curl -L https://github.com/openshift/hypershift/releases/latest/download/hypershift-linux-amd64 \
+    chmod +x /usr/local/bin/oc /usr/local/bin/kubectl
+
+# Install HyperShift CLI - using direct release URL
+RUN curl -L https://github.com/openshift/hypershift/releases/download/release-4.19/hypershift-linux-amd64 \
     -o /usr/local/bin/hypershift && \
-    chmod +x /usr/local/bin/hypershift /usr/local/bin/oc /usr/local/bin/kubectl
+    chmod +x /usr/local/bin/hypershift
 
 # Create a mock Claude CLI for testing
 # This will simulate Claude's behavior by executing the prompt as commands
