@@ -1,0 +1,69 @@
+# Simplified Dockerfile for testing infrastructure
+# This version simulates Claude CLI with a script
+FROM node:20-slim
+
+WORKDIR /workspace
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    ripgrep \
+    curl \
+    jq \
+    gettext-base \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install OpenShift and HyperShift CLIs
+RUN curl -L https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux.tar.gz | \
+    tar -xz -C /usr/local/bin oc kubectl && \
+    curl -L https://github.com/openshift/hypershift/releases/latest/download/hypershift-linux-amd64 \
+    -o /usr/local/bin/hypershift && \
+    chmod +x /usr/local/bin/hypershift /usr/local/bin/oc /usr/local/bin/kubectl
+
+# Create a mock Claude CLI for testing
+# This will simulate Claude's behavior by executing the prompt as commands
+RUN echo '#!/bin/bash\n\
+set -e\n\
+\n\
+# Simple mock Claude CLI for testing\n\
+# In production, this would be the real Claude CLI\n\
+\n\
+while [[ "$#" -gt 0 ]]; do\n\
+    case $1 in\n\
+        -p|--prompt) PROMPT="$2"; shift ;;\n\
+        --version) echo "Claude CLI Mock v0.1.0"; exit 0 ;;\n\
+        *) shift ;;\n\
+    esac\n\
+    shift\n\
+done\n\
+\n\
+echo "=== Claude Mock: Starting Investigation ===" \n\
+echo "Prompt received: $PROMPT" \n\
+echo "" \n\
+\n\
+# For testing, execute some basic diagnostic commands\n\
+echo "=== Checking cluster access ===" \n\
+oc whoami 2>/dev/null || echo "Not logged into cluster" \n\
+echo "" \n\
+\n\
+echo "=== Listing namespaces ===" \n\
+oc get namespaces 2>/dev/null || echo "Cannot list namespaces" \n\
+echo "" \n\
+\n\
+echo "=== Claude Mock: Investigation Complete ===" \n\
+' > /usr/local/bin/claude && chmod +x /usr/local/bin/claude
+
+# Verify installations
+RUN claude --version && \
+    oc version --client && \
+    hypershift version
+
+# Create non-root user
+RUN useradd -m -u 1001 -s /bin/bash claude && \
+    chown -R claude:claude /workspace
+
+USER 1001
+
+# Default command keeps container running for exec access
+CMD ["claude", "--help"]
