@@ -3,12 +3,10 @@ kind: Kustomization
 
 namespace: claude-warroom
 
+bases:
+  - ../base
+
 resources:
-  - ../base/namespace.yaml
-  - ../base/serviceaccount.yaml
-  - ../base/rbac.yaml
-  - prompts-configmap.yaml
-  - context-configmap.yaml
   - job-template.yaml
 
 configMapGenerator:

@@ -13,7 +13,7 @@ rules:
   # Execute debug commands on nodes and pods
   - apiGroups: [""]
     resources: ["pods/exec", "pods/log", "pods/portforward"]
-    verbs: ["get"]
+    verbs: ["get", "create"]
   
   # Read events across all namespaces
   - apiGroups: ["", "events.k8s.io"]
