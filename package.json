@@ -1,0 +1,21 @@
+{
+  "name": "warroom",
+  "version": "1.0.0",
+  "description": "AI-powered troubleshooting system for OpenShift HyperShift clusters using Claude Code as an intelligent investigation agent.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/intility/devinfra-claude-warroom.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/intility/devinfra-claude-warroom/issues"
+  },
+  "homepage": "https://github.com/intility/devinfra-claude-warroom#readme"
+}

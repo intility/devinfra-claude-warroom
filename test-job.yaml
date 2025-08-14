@@ -1,0 +1,72 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: claude-test-job
+  namespace: claude-warroom
+  labels:
+    app: claude-code
+    test: initial-deployment
+spec:
+  ttlSecondsAfterFinished: 300  # Clean up after 5 minutes
+  backoffLimit: 1
+  activeDeadlineSeconds: 300  # 5 minute timeout
+  template:
+    metadata:
+      labels:
+        app: claude-code
+        test: initial-deployment
+    spec:
+      serviceAccountName: claude-warroom-sa
+      restartPolicy: Never
+      containers:
+      - name: claude-test
+        image: ghcr.io/intility/claude-code:latest
+        imagePullPolicy: Always
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            echo "=== Claude Warroom Test Job ==="
+            echo "Date: $(date)"
+            echo "Cluster: Dev"
+            echo ""
+            
+            echo "=== Testing OpenShift CLI ==="
+            oc version --client
+            echo ""
+            
+            echo "=== Testing cluster access ==="
+            oc whoami
+            echo ""
+            
+            echo "=== Listing namespaces (first 10) ==="
+            oc get namespaces | head -10
+            echo ""
+            
+            echo "=== Testing Claude Mock CLI ==="
+            claude --version
+            echo ""
+            
+            echo "=== Running mock investigation ==="
+            claude -p "Test investigation: Check cluster health"
+            echo ""
+            
+            echo "=== Checking HyperShift resources (if available) ==="
+            oc get hostedclusters -A 2>/dev/null || echo "No hosted clusters found (expected in dev)"
+            echo ""
+            
+            echo "=== Test Job Complete ==="
+        
+        env:
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: claude-api-secret
+              key: api-key
+        
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
