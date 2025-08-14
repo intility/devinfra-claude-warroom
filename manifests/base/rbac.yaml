@@ -1,0 +1,57 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: claude-warroom-investigator
+  labels:
+    app: claude-code
+rules:
+  # Read access to all resources for investigation
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch"]
+  
+  # Execute debug commands on nodes and pods
+  - apiGroups: [""]
+    resources: ["pods/exec", "pods/log", "pods/portforward"]
+    verbs: ["get"]
+  
+  # Read events across all namespaces
+  - apiGroups: ["", "events.k8s.io"]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+  
+  # HyperShift specific resources
+  - apiGroups: ["hypershift.openshift.io"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch"]
+  
+  # Cluster API resources
+  - apiGroups: ["cluster.x-k8s.io"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch"]
+  
+  # OpenShift specific resources
+  - apiGroups: 
+    - "config.openshift.io"
+    - "operator.openshift.io"
+    - "network.openshift.io"
+    - "storage.openshift.io"
+    - "machine.openshift.io"
+    resources: ["*"]
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: claude-warroom-investigator
+  labels:
+    app: claude-code
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: claude-warroom-investigator
+subjects:
+- kind: ServiceAccount
+  name: claude-warroom-sa
+  namespace: claude-warroom

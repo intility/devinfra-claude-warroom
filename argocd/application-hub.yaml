@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: claude-warroom-hub
+  namespace: argocd
+  labels:
+    app: claude-warroom
+    cluster-type: hub
+spec:
+  project: default
+  
+  source:
+    repoURL: https://github.com/intility/devinfra-claude-warroom
+    targetRevision: main
+    path: manifests/hub
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: claude-warroom
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+      - Replace=true  # Replace Jobs on each sync
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

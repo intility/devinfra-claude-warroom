@@ -1,0 +1,136 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: claude-investigate-
+  namespace: claude-warroom
+  labels:
+    app: claude-code
+    investigation-type: "${ISSUE_TYPE:-general}"
+  annotations:
+    triggered-by: "${TRIGGERED_BY:-manual}"
+    timestamp: "${TIMESTAMP}"
+spec:
+  ttlSecondsAfterFinished: 86400  # Clean up after 24 hours
+  backoffLimit: 3  # Retry 3 times on failure
+  activeDeadlineSeconds: 1800  # 30 minute timeout
+  template:
+    metadata:
+      labels:
+        app: claude-code
+        investigation-type: "${ISSUE_TYPE:-general}"
+      annotations:
+        configmap/version: "will-be-replaced-by-kustomize"
+    spec:
+      serviceAccountName: claude-warroom-sa
+      restartPolicy: OnFailure
+      containers:
+      - name: claude-code
+        image: ghcr.io/intility/claude-code:latest
+        imagePullPolicy: Always
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            set -e
+            
+            # Setup environment
+            export TIMESTAMP="${TIMESTAMP:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
+            export CLUSTER_TYPE="${CLUSTER_TYPE:-hub}"
+            export CLUSTER_NAME="${CLUSTER_NAME:-production}"
+            export HOSTED_CLUSTER_NAME="${HOSTED_CLUSTER_NAME:-${CLUSTER_NAME}}"
+            export NAMESPACE="${NAMESPACE:-clusters}"
+            export ISSUE_TYPE="${ISSUE_TYPE:-general}"
+            export NODEPOOL_NAME="${NODEPOOL_NAME:-default}"
+            export TARGET_REPLICAS="${TARGET_REPLICAS:-3}"
+            
+            # Copy context files to workspace
+            cp -r /context/* /workspace/ 2>/dev/null || true
+            
+            # Select and process prompt
+            PROMPT_FILE="/prompts/${ISSUE_TYPE}.md"
+            if [ ! -f "$PROMPT_FILE" ]; then
+              echo "Prompt file not found: $PROMPT_FILE, using default"
+              PROMPT_FILE="/prompts/comprehensive-dump.md"
+            fi
+            
+            # Substitute variables in prompt
+            PROCESSED_PROMPT=$(envsubst < "$PROMPT_FILE")
+            
+            # Run Claude Code with OpenTelemetry enabled
+            echo "Starting Claude Code investigation: ${ISSUE_TYPE} for cluster ${CLUSTER_NAME}"
+            echo "Timestamp: ${TIMESTAMP}"
+            
+            claude -p "$PROCESSED_PROMPT" \
+              --allowedTools bash,read,grep,write \
+              --output-format stream-json
+        
+        env:
+        # Anthropic API configuration
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: claude-api-secret
+              key: api-key
+        
+        # OpenTelemetry configuration for Logfire
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "${OTEL_ENDPOINT:-http://logfire-collector.monitoring:4318}"
+        - name: OTEL_EXPORTER_OTLP_PROTOCOL
+          value: "http/protobuf"
+        - name: OTEL_SERVICE_NAME
+          value: "claude-warroom"
+        - name: OTEL_RESOURCE_ATTRIBUTES
+          value: "cluster.name=${CLUSTER_NAME},cluster.type=${CLUSTER_TYPE},investigation.type=${ISSUE_TYPE},triggered.by=${TRIGGERED_BY}"
+        - name: OTEL_TRACES_EXPORTER
+          value: "otlp"
+        - name: OTEL_METRICS_EXPORTER
+          value: "otlp"
+        - name: OTEL_LOGS_EXPORTER
+          value: "otlp"
+        
+        # Investigation parameters (can be overridden)
+        - name: CLUSTER_TYPE
+          value: "${CLUSTER_TYPE:-hub}"
+        - name: CLUSTER_NAME
+          value: "${CLUSTER_NAME:-production}"
+        - name: HOSTED_CLUSTER_NAME
+          value: "${HOSTED_CLUSTER_NAME:-production}"
+        - name: NAMESPACE
+          value: "${NAMESPACE:-clusters}"
+        - name: ISSUE_TYPE
+          value: "${ISSUE_TYPE:-comprehensive-dump}"
+        - name: NODEPOOL_NAME
+          value: "${NODEPOOL_NAME:-default}"
+        - name: TARGET_REPLICAS
+          value: "${TARGET_REPLICAS:-3}"
+        - name: TRIGGERED_BY
+          value: "${TRIGGERED_BY:-manual}"
+        - name: TIMESTAMP
+          value: "${TIMESTAMP}"
+        
+        volumeMounts:
+        - name: prompts
+          mountPath: /prompts
+          readOnly: true
+        - name: context
+          mountPath: /context
+          readOnly: true
+        - name: workspace
+          mountPath: /workspace
+        
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2"
+      
+      volumes:
+      - name: prompts
+        configMap:
+          name: claude-prompts
+      - name: context
+        configMap:
+          name: claude-context
+      - name: workspace
+        emptyDir: {}
